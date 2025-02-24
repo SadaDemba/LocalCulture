@@ -1,5 +1,11 @@
 import React from "react";
-import { View, TouchableOpacity, Text } from "react-native";
+import {
+  View,
+  TouchableOpacity,
+  Text,
+  SafeAreaView,
+  StatusBar,
+} from "react-native";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
@@ -32,7 +38,14 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
 
   return (
     <View style={styles.container}>
-      <DrawerHeader />
+      <SafeAreaView style={{ backgroundColor: "#665b41" }}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="dark-content"
+        />
+        <DrawerHeader />
+      </SafeAreaView>
       <DrawerContentScrollView>
         <View style={styles.menuContainer}>
           {menuItems.map((item) => (

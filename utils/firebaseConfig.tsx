@@ -1,23 +1,33 @@
-import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { initializeAuth } from "firebase/auth";
+import { getReactNativePersistence } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getFirestore } from "firebase/firestore";
 
+// Type definition for Firebase configuration
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
 
-const firebaseConfig = {
-    apiKey: "AIzaSyBVvdIWMFwFJPdcIvIFrxh_H29V1tiaTcc",
-    authDomain: "localculture-m2.firebasestorage.com",
-    projectId: "localculture-m2",
-    storageBucket: "localculture-m2.firebasestorage.app",
-    messagingSenderId: "621418285006",
-    appId: "1:621418285006:android:6725eafa0bf904187f0d9f"
+// Using environment variables
+const firebaseConfig: FirebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "",
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
+  persistence: getReactNativePersistence(AsyncStorage),
 });
-
 const db = getFirestore(app);
 
 export { app, auth, db };

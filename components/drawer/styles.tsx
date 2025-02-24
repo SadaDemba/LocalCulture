@@ -9,7 +9,6 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#665b41",
     backgroundColor: "#665b41",
-    paddingTop: 35,
     alignItems: "center",
   },
   avatarContainer: {
