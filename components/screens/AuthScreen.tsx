@@ -7,8 +7,14 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { auth } from "../../utils/firebaseConfig";
 import { Ionicons } from "@expo/vector-icons";
+import { saveUserToFireStore } from "@/utils/FireStore";
 
 export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -32,17 +38,29 @@ export function AuthScreen() {
   const handleAuth = async () => {
     try {
       if (isLogin) {
-        //For login
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
-        //For signUp
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        await updateProfile(userCredential.user, {
+          displayName: `${firstName} ${lastName}`,
+        });
+        saveUserToFireStore(firstName, lastName);
       }
     } catch (error: any) {
       if (error.message.includes("auth/invalid-credential")) {
         setError("Email ou mot de passe incorrecte !");
         return;
       }
+      if (error.message.includes("auth/email-already-in-use")) {
+        setError("Email déjà associé à un compte !");
+        return;
+      }
       console.log(error);
-      setError("error.message");
+      setError(error.message);
     }
   };
 
@@ -87,7 +105,7 @@ export function AuthScreen() {
               <Ionicons
                 name="person-outline"
                 size={24}
-                color="gray"
+                color="#665b41"
                 style={styles.icon}
               />
               <TextInput
@@ -98,15 +116,21 @@ export function AuthScreen() {
                   setFirstName(text);
                   validateFields();
                 }}
-                placeholderTextColor="gray"
+                placeholderTextColor="#665b41"
                 autoCapitalize="words"
               />
             </View>
             <View style={styles.inputContainer}>
               <Ionicons
+                name="medical"
+                size={7}
+                color="white"
+                style={styles.requiredIcon}
+              ></Ionicons>
+              <Ionicons
                 name="person-outline"
                 size={24}
-                color="gray"
+                color="#665b41"
                 style={styles.icon}
               />
               <TextInput
@@ -117,7 +141,7 @@ export function AuthScreen() {
                   setLastName(text);
                   validateFields();
                 }}
-                placeholderTextColor="gray"
+                placeholderTextColor="#665b41"
                 autoCapitalize="characters"
               />
             </View>
@@ -133,7 +157,7 @@ export function AuthScreen() {
           <Ionicons
             name="mail-outline"
             size={24}
-            color="gray"
+            color="#665b41"
             style={styles.icon}
           />
 
@@ -147,7 +171,7 @@ export function AuthScreen() {
             }}
             keyboardType="email-address"
             autoCapitalize="none"
-            placeholderTextColor="gray"
+            placeholderTextColor="#665b41"
           />
         </View>
         <View style={styles.inputContainer}>
@@ -160,13 +184,13 @@ export function AuthScreen() {
           <Ionicons
             name="lock-closed-outline"
             size={24}
-            color="gray"
+            color="#665b41"
             style={styles.icon}
           />
           <TextInput
             style={styles.input}
             placeholder="Mot de passe"
-            placeholderTextColor="gray"
+            placeholderTextColor="#665b41"
             value={password}
             onChangeText={(text) => {
               setPassword(text);
@@ -181,7 +205,7 @@ export function AuthScreen() {
             <Ionicons
               name={showPassword ? "eye-outline" : "eye-off-outline"}
               size={24}
-              color="gray"
+              color="#665b41"
             />
           </TouchableOpacity>
         </View>
@@ -196,13 +220,13 @@ export function AuthScreen() {
             <Ionicons
               name="lock-closed-outline"
               size={24}
-              color="gray"
+              color="#665b41"
               style={styles.icon}
             />
             <TextInput
               style={styles.input}
               placeholder="Confirmer le mot de passe"
-              placeholderTextColor="gray"
+              placeholderTextColor="#665b41"
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
@@ -239,7 +263,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#665b41",
   },
   formContainer: {
     backgroundColor: "white",
@@ -255,7 +279,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 15,
-    borderColor: "#ddd",
+    borderColor: "##665b41",
     borderWidth: 1,
     borderRadius: 5,
   },
