@@ -12,6 +12,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { DrawerHeader } from "@/components/drawer/DrawerHeader";
 import { styles } from "@/components/drawer/styles";
 import { NavigationItem } from "@/models/NavigationItem";
+import { auth } from "@/utils/firebaseConfig";
 
 export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   const { navigation } = props;
@@ -26,7 +27,7 @@ export const CustomDrawerContent = (props: DrawerContentComponentProps) => {
   ];
 
   const handleLogout = () => {
-    console.log("User signed out!");
+    auth.signOut().then(() => console.log("User signed out!"));
   };
 
   return (
