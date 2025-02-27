@@ -21,6 +21,7 @@ export function AuthScreen() {
   const [isFormValid, setIsFormValid] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [bio, setBio] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,7 +49,7 @@ export function AuthScreen() {
         await updateProfile(userCredential.user, {
           displayName: `${firstName} ${lastName}`,
         });
-        saveUserToFireStore(firstName, lastName);
+        saveUserToFireStore(firstName, lastName, bio);
       }
     } catch (error: any) {
       if (error.message.includes("auth/invalid-credential")) {
@@ -143,6 +144,31 @@ export function AuthScreen() {
                 }}
                 placeholderTextColor="#665b41"
                 autoCapitalize="characters"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="medical"
+                size={7}
+                color="white"
+                style={styles.requiredIcon}
+              ></Ionicons>
+              <Ionicons
+                name="book-outline"
+                size={24}
+                color="#665b41"
+                style={styles.icon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Bio"
+                value={bio}
+                onChangeText={(text) => {
+                  setBio(text);
+                  validateFields();
+                }}
+                placeholderTextColor="#665b41"
+                autoCapitalize="sentences"
               />
             </View>
           </>
