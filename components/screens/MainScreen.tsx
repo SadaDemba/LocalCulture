@@ -1,5 +1,5 @@
 import { Event } from "@/models/Event";
-import { getAllEvents } from "@/utils/FireStore";
+import { getAllEvents, getAllTags } from "@/utils/FireStore";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -21,16 +21,23 @@ export function MainScreen({ navigation }) {
   const [selectedTags, setSelectedTags] = useState([]);
   const [selectedAuthors, setSelectedAuthors] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
 
-  const tags = ["Tech", "Design", "Business", "Gaming"];
-  const authors = ["Alice", "Bob", "Charlie", "David"];
+  const authors = [
+    "Mes évènements",
+    "Autres évènements",
+    "Tous les évènements",
+  ];
   const fetchEvents = async () => {
     try {
       setRefreshing(true);
       const events = await getAllEvents();
-      console.log(events);
+      const tags = await getAllTags();
       if (events) {
         setEvents(events);
+      }
+      if (tags) {
+        setTags(tags);
       }
     } catch (error) {
       console.error("Erreur lors du chargement:", error);
@@ -43,6 +50,7 @@ export function MainScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchEvents();
+
       return () => {};
     }, [])
   );

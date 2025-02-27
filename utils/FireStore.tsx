@@ -93,6 +93,7 @@ export const createEvent = async (event: Event) => {
     event.updatedAt = new Date().toISOString();
     event.author = auth.currentUser?.uid;
     const eventRef = await addDoc(collection(db, "events"), event.toJSON());
+    await addTags(event.tags);
     console.log("Event created with ID:", eventRef.id);
     return eventRef.id;
   } catch (error) {
@@ -244,4 +245,38 @@ export const convertToEvent = (
   );
 
   return event;
+};
+
+export const addTags = async (tags: string[]) => {
+  try {
+    const tagsRef = collection(db, "tags");
+
+    const existingTagsSnapshot = await getDocs(tagsRef);
+    const existingTags = existingTagsSnapshot.docs.map(
+      (doc) => doc.data().name
+    );
+
+    const newTags = tags
+      .map((tag) => tag.toLowerCase())
+      .filter((tag) => !existingTags.includes(tag));
+
+    if (newTags.length === 0) {
+      return;
+    }
+
+    // Ajouter les nouveaux tags
+    const addPromises = newTags.map((tag) => addDoc(tagsRef, { name: tag }));
+    await Promise.all(addPromises);
+  } catch (error) {
+    console.error("Erreur lors de l'ajout des tags :", error);
+    throw error;
+  }
+};
+
+export const getAllTags = async () => {
+  const tagsRef = collection(db, "tags");
+
+  const tagsSnapshot = await getDocs(tagsRef);
+  const tags: string[] = tagsSnapshot.docs.map((doc) => doc.data().name);
+  return tags;
 };
