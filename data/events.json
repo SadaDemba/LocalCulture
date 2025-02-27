@@ -1,0 +1,87 @@
+[
+  {
+    "id": "1",
+    "title": "Music Festival",
+    "description": "Annual music festival featuring local bands and international artists",
+    "date": "2025-03-15",
+    "time": "18:00",
+    "location": {
+      "name": "City Park",
+      "address": "123 Main Street, Paris",
+      "coordinates": { "lat": 48.8566, "lng": 2.3522 }
+    },
+    "category": "Music",
+    "imageUrl": "https://example.com/images/music-festival.jpg",
+    "organizer": "City Events",
+    "likes": 120,
+    "attendees": 450
+  },
+  {
+    "id": "2",
+    "title": "Art Exhibition",
+    "description": "Contemporary art from local artists",
+    "date": "2025-03-20",
+    "time": "10:00",
+    "location": {
+      "name": "Modern Gallery",
+      "address": "456 Art Avenue, Paris",
+      "coordinates": { "lat": 48.8606, "lng": 2.3376 }
+    },
+    "category": "Art",
+    "imageUrl": "https://example.com/images/art-exhibition.jpg",
+    "organizer": "Paris Arts Association",
+    "likes": 85,
+    "attendees": 200
+  },
+  {
+    "id": "3",
+    "title": "Food Festival",
+    "description": "Taste delicious local cuisine from various restaurants",
+    "date": "2025-03-25",
+    "time": "12:00",
+    "location": {
+      "name": "Marketplace",
+      "address": "789 Food Street, Paris",
+      "coordinates": { "lat": 48.8530, "lng": 2.3499 }
+    },
+    "category": "Food",
+    "imageUrl": "https://example.com/images/food-festival.jpg",
+    "organizer": "Foodies Association",
+    "likes": 210,
+    "attendees": 750
+  },
+  {
+    "id": "4",
+    "title": "Tech Meetup",
+    "description": "Network with local tech enthusiasts and learn about new technologies",
+    "date": "2025-03-18",
+    "time": "19:00",
+    "location": {
+      "name": "Innovation Hub",
+      "address": "101 Tech Boulevard, Paris",
+      "coordinates": { "lat": 48.8737, "lng": 2.2950 }
+    },
+    "category": "Technology",
+    "imageUrl": "https://example.com/images/tech-meetup.jpg",
+    "organizer": "Tech Community",
+    "likes": 65,
+    "attendees": 120
+  },
+  {
+    "id": "5",
+    "title": "Yoga in the Park",
+    "description": "Open-air yoga session for all levels",
+    "date": "2025-03-22",
+    "time": "08:00",
+    "location": {
+      "name": "Riverside Park",
+      "address": "202 River Road, Paris",
+      "coordinates": { "lat": 48.8417, "lng": 2.3197 }
+    },
+    "category": "Fitness",
+    "imageUrl": "https://example.com/images/yoga.jpg",
+    "organizer": "Wellness Group",
+    "likes": 95,
+    "attendees": 80
+  }
+]
