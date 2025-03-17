@@ -259,10 +259,11 @@ export const convertToEvent = (
 
   let location = undefined;
   if (eventData.location) {
+    // console.log("Location: " + eventData.location.c);
     location = new Location(
-      eventData.location.name,
-      eventData.location.address,
-      new Coordinates(eventData.location.latitude, eventData.location.longitude)
+        eventData.location.name,
+        eventData.location.address,
+        new Coordinates(eventData.location.coordinates.latitude, eventData.location.coordinates.longitude)
     );
   }
 

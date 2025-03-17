@@ -1,40 +1,128 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import React, {useCallback, useEffect, useState} from "react";
+import {View, Text, StyleSheet, Dimensions, Alert} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LatLng, LeafletView } from 'react-native-leaflet-view';
 
 // Import types
-import { Event, MapMarker } from '../../types';
+// import { MapMarker } from '../../types';
+import { Event } from "@/models/Event";
 
 // Import category icons
 import { getCategoryIcon } from '../markers/CategoryIcons';
+import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
+import {useFocusEffect} from "expo-router";
 
 // Import static event data
 // We need to explicitly cast the imported JSON as an array of Event objects
-const eventData = require('../../data/events.json') as Event[];
+// const eventData = require('../../data/events.json') as Event[];
 
 // Get device dimensions
 const { width, height } = Dimensions.get('window');
 
+interface MapMarker {
+    id: string;
+    position: { lat: number; lng: number };
+    icon: string;
+    size: [number, number];
+    title: string;
+    description: string;
+}
+
 export function MapScreen() {
+    const [events, setEvents] = useState<Event[]>([]);
     const [markers, setMarkers] = useState<MapMarker[]>([]);
     const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 }); // Paris center as default
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-    useEffect(() => {
-        // Convert event data to map markers
-        const eventMarkers: MapMarker[] = eventData.map(event => ({
-            id: event.id,
-            position: event.location.coordinates,
-            icon: getCategoryIcon(event.category),
-            size: [32, 32],
-            title: event.title,
-            description: `${event.description} - ${event.date} at ${event.time}`
-        }));
-        
-        setMarkers(eventMarkers);
-    }, []);
+    const fetchEvents = async () => {
+        try {
+            // setRefreshing(true);
+            // setFilters();
 
+            console.log("Fetching events");
+            const fetchedEvents = await getEvents();
+            if (fetchedEvents) {
+                setEvents(fetchedEvents);
+                console.log(`Events loaded: ${fetchedEvents.length}`);
+            }            // const tags = await getAllTags();
+            // if (events) {
+            //     setEvents(events);
+            // }
+            // if (tags) {
+            //     setTags(tags);
+            // }
+        } catch (error) {
+            console.error("Erreur lors du chargement:", error);
+            Alert.alert("Erreur", "Impossible de charger les évènements");
+        } finally {
+            // setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!events || events.length === 0) {
+            console.log("No events to display on map");
+            return;
+        }
+
+        console.log(`Converting ${events.length} events to map markers`);
+
+        // Convert event data to map markers
+        // const eventMarkers: MapMarker[] = events.map(event => ({
+        //     id: event.id,
+        //     position: event.location!.coordinates,
+        //     icon: getCategoryIcon(event.tags[0]),
+        //     size: [32, 32],
+        //     title: event.title,
+        //     description: `${event.description} - ${event.beginDate}`
+        // }));
+
+        const eventMarkers: MapMarker[] = events
+            .filter(event =>  event.location && event.location.coordinates)
+            .map(event => {
+                if (!event.location ||
+                    !event.location.coordinates) {
+                    console.error("Could not find location", event.location);
+                    return null;
+                }
+
+                console.log(event.location.coordinates);
+
+                return {
+                    id: event.getId(),
+                    position: {
+                        lat: event.location.coordinates.latitude,
+                        lng: event.location.coordinates.longitude
+                    },
+                    icon: getCategoryIcon(event.tags[0]),
+                    size: [32, 32],
+                    title: event.title,
+                    description: event.description,
+                };
+            })
+            .filter(marker => marker !== null) as MapMarker[];
+
+        console.log(`Created ${eventMarkers.length} markers`);
+        console.log(eventMarkers);
+
+
+        setMarkers(eventMarkers);
+        if (eventMarkers.length > 0) {
+            setMapCenter(eventMarkers[0].position);
+            // Will change with user position later
+        }
+    }, [events]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchEvents();
+            return () => {};
+        }, [])
+    );
+
+    const onRefresh = () => {
+        fetchEvents();
+    };
 
     const handleMessageReceived = (message: any) => {
         try {
@@ -42,19 +130,19 @@ export function MapScreen() {
 
             // Handle marker click event
             if (event === 'onMapMarkerClicked') {
-                console.log('Marker clicked:', payload.mapMarkerID);
+                // console.log('Marker clicked:', payload.mapMarkerID);
                 const markerId = payload.mapMarkerID;
-                console.log('Marker clicked:', markerId);
+                // console.log('Marker clicked:', markerId);
 
                 // Find the selected event
                 const foundEvent = eventData.find(event => event.id === markerId);
                 if (foundEvent) {
-                    console.log('Event details:', foundEvent);
+                    // console.log('Event details:', foundEvent);
                     setSelectedEvent(foundEvent);
                 }
             }
         } catch (error) {
-            console.error('Error parsing message:', error);
+            // console.error('Error parsing message:', error);
         }
     };
 
