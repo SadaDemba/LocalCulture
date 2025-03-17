@@ -62,6 +62,7 @@ export function AddEventScreen() {
       beginDate: new Date(data.beginDate).toISOString(),
       endDate: data.endDate ? new Date(data.endDate).toISOString() : "",
     };
+    formattedData.tags.map((tag) => tag.toLowerCase().trim());
     const event = new Event(
       formattedData.title,
       formattedData.description,

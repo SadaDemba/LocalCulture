@@ -7,6 +7,9 @@ import {
   DocumentSnapshot,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
+  Query,
   query,
   serverTimestamp,
   setDoc,
@@ -257,14 +260,13 @@ export const addTags = async (tags: string[]) => {
     );
 
     const newTags = tags
-      .map((tag) => tag.toLowerCase())
+      .map((tag) => tag.toLowerCase().trim())
       .filter((tag) => !existingTags.includes(tag));
 
     if (newTags.length === 0) {
       return;
     }
 
-    // Ajouter les nouveaux tags
     const addPromises = newTags.map((tag) => addDoc(tagsRef, { name: tag }));
     await Promise.all(addPromises);
   } catch (error) {
@@ -279,4 +281,72 @@ export const getAllTags = async () => {
   const tagsSnapshot = await getDocs(tagsRef);
   const tags: string[] = tagsSnapshot.docs.map((doc) => doc.data().name);
   return tags;
+};
+
+export const getEvents = async (options: EventQueryOptions = {}) => {
+  try {
+    let eventsQuery: Query<DocumentData> = collection(db, "events");
+    const constraints = [];
+
+    const user = auth.currentUser;
+
+    // Filtre par utilisateur
+    if (options.userEvents) {
+      switch (options.userEvents.type) {
+        case "current":
+          if (!user || !user.uid) {
+            throw new Error("User is not authenticated");
+          }
+          constraints.push(where("author", "==", user.uid));
+          break;
+        case "others":
+          if (!user || !user.uid) {
+            throw new Error("User is not authenticated");
+          }
+          constraints.push(where("author", "!=", user.uid));
+          break;
+      }
+    }
+    console.log(options);
+    // Filtre par tags (si au moins un tag est fourni)
+    if (options.tags && options.tags.length > 0) {
+      constraints.push(where("tags", "array-contains-any", options.tags));
+    }
+
+    // Filtre par plage de date
+    /*     if (options.dateRange) {
+      if (options.dateRange.start) {
+        constraints.push(
+          where("beginDate", ">=", options.dateRange.start.toISOString())
+        );
+      }
+      if (options.dateRange.end) {
+        constraints.push(
+          where("beginDate", "<=", options.dateRange.end.toISOString())
+        );
+      }
+    } */
+
+    if (constraints.length > 0) {
+      eventsQuery = query(eventsQuery, ...constraints);
+    }
+
+    if (options.sortBy) {
+      const { field, direction } = options.sortBy;
+      eventsQuery = query(eventsQuery, orderBy(field, direction));
+    }
+    console.log(constraints);
+    if (options.limit && options.limit > 0) {
+      eventsQuery = query(eventsQuery, limit(options.limit));
+    }
+
+    const querySnapshot = await getDocs(eventsQuery);
+
+    const events = querySnapshot.docs.map((doc) => convertToEvent(doc));
+
+    return events;
+  } catch (error) {
+    console.error("Error fetching events: ", error);
+    throw error;
+  }
 };

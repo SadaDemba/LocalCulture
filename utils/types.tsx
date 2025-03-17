@@ -11,6 +11,11 @@ export type RootStackParamList = {
   Main: undefined;
 };
 
+/* export enum authorFilter {
+  "Mes évènements",
+  "AUtres évènements",
+  "Tous les évènements",
+} */
 /* export type HomeTabParamList = {
   Home: undefined;
   History: undefined;

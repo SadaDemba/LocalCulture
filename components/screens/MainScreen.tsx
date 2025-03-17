@@ -1,8 +1,8 @@
 import { Event } from "@/models/Event";
-import { getAllEvents, getAllTags } from "@/utils/FireStore";
+import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,24 +14,96 @@ import {
 } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 
 export function MainScreen({ navigation }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [selectedAuthors, setSelectedAuthors] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedAuthor, setSelectedAuthor] = useState<string>(
+    "Tous les évènements"
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  const [sortField, setSortField] = useState("beginDate");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const [queryOptions, setQueryOptions] = useState<EventQueryOptions>({});
 
   const authors = [
     "Mes évènements",
     "Autres évènements",
     "Tous les évènements",
   ];
+  const selectAuthor = (author: string) => {
+    setSelectedAuthor(author === selectedAuthor ? "" : author);
+  };
+
+  // Gestionnaires pour les sélecteurs de date
+  const onStartDateChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date
+  ) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      setStartDate(selectedDate);
+    }
+  };
+
+  const onEndDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      setEndDate(selectedDate);
+    }
+  };
+
+  // Fonction pour basculer la direction du tri
+  const toggleSortDirection = () => {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  // Fonction pour changer le champ de tri
+  const changeSortField = (field: string) => {
+    setSortField(field);
+  };
+
+  // Création des options de filtrage à chaque changement des filtres
+  useEffect(() => {
+    setFilters();
+  }, [
+    selectedTags,
+    selectedAuthor,
+    startDate,
+    endDate,
+    sortField,
+    sortDirection,
+  ]);
+
+  const setFilters = () => {
+    let options: EventQueryOptions = {};
+    options.tags = selectedTags;
+    options.userEvents =
+      selectedAuthor === "Tous les évènements"
+        ? "all"
+        : selectedAuthor === "Tous les évènements"
+        ? "current"
+        : "others";
+    setQueryOptions(options);
+  };
+
   const fetchEvents = async () => {
     try {
       setRefreshing(true);
-      const events = await getAllEvents();
+      setFilters();
+
+      const events = await getEvents(queryOptions);
       const tags = await getAllTags();
       if (events) {
         setEvents(events);
@@ -50,10 +122,13 @@ export function MainScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchEvents();
-
       return () => {};
     }, [])
   );
+
+  useEffect(() => {
+    setFilters();
+  }, [selectedTags, selectedAuthor]);
 
   const onRefresh = () => {
     fetchEvents();
@@ -65,14 +140,14 @@ export function MainScreen({ navigation }) {
     setSelectedList: any
   ) => {
     if (selectedList.includes(item)) {
-      setSelectedList(selectedList.filter((i: string) => i !== item)); // Supprimer si déjà sélectionné
+      setSelectedList(selectedList.filter((i: string) => i !== item));
     } else {
-      setSelectedList([...selectedList, item]); // Ajouter si pas encore sélectionné
+      setSelectedList([...selectedList, item]);
     }
   };
 
   const removeSelections = () => {
-    setSelectedAuthors([]);
+    setSelectedAuthor("Tous les évènements");
     setSelectedTags([]);
   };
 
@@ -122,21 +197,176 @@ export function MainScreen({ navigation }) {
             {authors.map((author) => (
               <TouchableOpacity
                 key={author}
-                onPress={() =>
-                  toggleSelection(author, selectedAuthors, setSelectedAuthors)
-                }
+                onPress={() => selectAuthor(author)}
                 style={{
                   padding: 10,
                   marginVertical: 2,
-                  backgroundColor: selectedAuthors.includes(author)
-                    ? "green"
-                    : "#e0e0e0",
+                  backgroundColor:
+                    selectedAuthor === author ? "green" : "#e0e0e0",
                   borderRadius: 5,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
                 <Text>{author}</Text>
+                <View
+                  style={{
+                    height: 20,
+                    width: 20,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: "black",
+                    backgroundColor:
+                      selectedAuthor === author ? "green" : "white",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {selectedAuthor === author && (
+                    <View
+                      style={{
+                        height: 12,
+                        width: 12,
+                        borderRadius: 6,
+                        backgroundColor: "white",
+                      }}
+                    />
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
+
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "bold",
+                marginTop: 10,
+                marginBottom: 5,
+              }}
+            >
+              Filtrer par date :
+            </Text>
+
+            <View style={{ marginVertical: 10 }}>
+              <Text>Date de début :</Text>
+              <TouchableOpacity
+                onPress={() => setShowStartDatePicker(true)}
+                style={{
+                  padding: 10,
+                  marginVertical: 5,
+                  backgroundColor: "#e0e0e0",
+                  borderRadius: 5,
+                }}
+              >
+                <Text>{startDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={startDate}
+                  mode="date"
+                  display="default"
+                  onChange={onStartDateChange}
+                />
+              )}
+            </View>
+
+            <View style={{ marginVertical: 10 }}>
+              <Text>Date de fin :</Text>
+              <TouchableOpacity
+                onPress={() => setShowEndDatePicker(true)}
+                style={{
+                  padding: 10,
+                  marginVertical: 5,
+                  backgroundColor: "#e0e0e0",
+                  borderRadius: 5,
+                }}
+              >
+                <Text>{endDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={endDate}
+                  mode="date"
+                  display="default"
+                  onChange={onEndDateChange}
+                />
+              )}
+            </View>
+
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "bold",
+                marginTop: 10,
+                marginBottom: 5,
+              }}
+            >
+              Options de tri :
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginVertical: 10,
+              }}
+            >
+              <Text>Trier par : </Text>
+              <View style={{ flexDirection: "row", marginVertical: 5 }}>
+                <TouchableOpacity
+                  onPress={() => changeSortField("beginDate")}
+                  style={{
+                    padding: 10,
+                    marginRight: 5,
+                    backgroundColor:
+                      sortField === "beginDate" ? "green" : "#e0e0e0",
+                    borderRadius: 5,
+                  }}
+                >
+                  <Text>Date de début</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => changeSortField("title")}
+                  style={{
+                    padding: 10,
+                    marginRight: 5,
+                    backgroundColor:
+                      sortField === "title" ? "green" : "#e0e0e0",
+                    borderRadius: 5,
+                  }}
+                >
+                  <Text>Titre</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginVertical: 10,
+              }}
+            >
+              <Text>Direction du tri : </Text>
+              <TouchableOpacity
+                onPress={toggleSortDirection}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 10,
+                  backgroundColor: "#e0e0e0",
+                  borderRadius: 5,
+                }}
+              >
+                <Text>
+                  {sortDirection === "asc" ? "Ascendant ↑" : "Descendant ↓"}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Bouton Appliquer les filtres */}
             <View
@@ -145,7 +375,10 @@ export function MainScreen({ navigation }) {
               }}
             >
               <TouchableOpacity
-                onPress={() => setShowFilters(false)}
+                onPress={() => {
+                  setShowFilters(false);
+                  fetchEvents();
+                }}
                 style={{
                   marginTop: 15,
                   padding: 10,
@@ -402,6 +635,9 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 12,
     color: "#665b41",
+    textTransform: "capitalize",
+    flexShrink: 1,
+    width: "100%",
   },
   moreTags: {
     fontSize: 12,
