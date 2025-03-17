@@ -92,7 +92,7 @@ export function MainScreen({ navigation }) {
     options.userEvents =
       selectedAuthor === "Tous les évènements"
         ? "all"
-        : selectedAuthor === "Tous les évènements"
+        : selectedAuthor === "Mes évènements"
         ? "current"
         : "others";
     setQueryOptions(options);

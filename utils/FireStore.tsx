@@ -20,6 +20,7 @@ import { db, auth } from "./firebaseConfig";
 import { User } from "@/models/User";
 import { Event } from "@/models/Event";
 import { Location } from "@/models/Location";
+import { Coordinates } from "@/models/Coordinates";
 
 export const saveUserToFireStore = async (
   firstName: string,
@@ -224,12 +225,13 @@ export const convertToEvent = (
     return null;
   }
   const eventData = eventSnap.data();
+
   let location = undefined;
   if (eventData.location) {
     location = new Location(
       eventData.location.name,
-      eventData.location.latitude,
-      eventData.location.longitude
+      eventData.location.address,
+      new Coordinates(eventData.location.latitude, eventData.location.longitude)
     );
   }
 
@@ -307,7 +309,7 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
           break;
       }
     }
-    console.log(options);
+
     // Filtre par tags (si au moins un tag est fourni)
     if (options.tags && options.tags.length > 0) {
       constraints.push(where("tags", "array-contains-any", options.tags));
@@ -335,7 +337,7 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
       const { field, direction } = options.sortBy;
       eventsQuery = query(eventsQuery, orderBy(field, direction));
     }
-    console.log(constraints);
+
     if (options.limit && options.limit > 0) {
       eventsQuery = query(eventsQuery, limit(options.limit));
     }
@@ -343,7 +345,8 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
     const querySnapshot = await getDocs(eventsQuery);
 
     const events = querySnapshot.docs.map((doc) => convertToEvent(doc));
-
+    console.log("events");
+    console.log(events);
     return events;
   } catch (error) {
     console.error("Error fetching events: ", error);
