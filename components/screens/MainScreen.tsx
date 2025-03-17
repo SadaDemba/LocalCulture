@@ -1,7 +1,7 @@
 import { Event } from "@/models/Event";
 import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useFocusEffect } from "expo-router";
+import { Stack, useFocusEffect, useNavigation } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
@@ -20,6 +20,7 @@ import DateTimePicker, {
 
 export function MainScreen({ navigation }) {
   const [events, setEvents] = useState<Event[]>([]);
+
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedAuthor, setSelectedAuthor] = useState<string>(
@@ -92,7 +93,7 @@ export function MainScreen({ navigation }) {
     options.userEvents =
       selectedAuthor === "Tous les évènements"
         ? "all"
-        : selectedAuthor === "Tous les évènements"
+        : selectedAuthor === "Mes évènements"
         ? "current"
         : "others";
     setQueryOptions(options);
@@ -428,7 +429,10 @@ export function MainScreen({ navigation }) {
       <TouchableOpacity
         style={styles.eventCard}
         onPress={() => {
-          /* Navigation vers le détail de l'événement */
+          navigation.navigate("SingleEvent", {
+            ev: item,
+            navigation: navigation,
+          });
         }}
       >
         <View style={styles.eventHeader}>

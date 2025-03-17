@@ -91,6 +91,37 @@ export const deleteUser = async () => {
   }
 };
 
+export const getUserById = async (userId: string) => {
+  if (!userId) {
+    console.error("No user ID provided.");
+    return null;
+  }
+
+  try {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      return new User(
+        userData.firstName || "",
+        userData.lastName || "",
+        userData.email || "",
+        userData.profilePicture || "",
+        userData.bio || "",
+        userData.interests || [],
+        userSnap.id
+      );
+    } else {
+      console.log("No user found with ID:", userId);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user data: ", error);
+    return null;
+  }
+};
+
 export const createEvent = async (event: Event) => {
   try {
     event.createdAt = new Date().toISOString();
@@ -225,6 +256,7 @@ export const convertToEvent = (
     return null;
   }
   const eventData = eventSnap.data();
+
   let location = undefined;
   if (eventData.location) {
     // console.log("Location: " + eventData.location.c);
@@ -309,7 +341,7 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
           break;
       }
     }
-    console.log(options);
+
     // Filtre par tags (si au moins un tag est fourni)
     if (options.tags && options.tags.length > 0) {
       constraints.push(where("tags", "array-contains-any", options.tags));
@@ -337,7 +369,7 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
       const { field, direction } = options.sortBy;
       eventsQuery = query(eventsQuery, orderBy(field, direction));
     }
-    console.log(constraints);
+
     if (options.limit && options.limit > 0) {
       eventsQuery = query(eventsQuery, limit(options.limit));
     }
@@ -345,7 +377,8 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
     const querySnapshot = await getDocs(eventsQuery);
 
     const events = querySnapshot.docs.map((doc) => convertToEvent(doc));
-
+    console.log("events");
+    console.log(events);
     return events;
   } catch (error) {
     console.error("Error fetching events: ", error);

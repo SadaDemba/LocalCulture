@@ -8,6 +8,7 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { MapScreen } from "../screens/MapScreen";
 import { GalleryScreen } from "../screens/GalleryScreen";
 import { AddEventScreen } from "../screens/AddEventScreen";
+import { EventScreen } from "../screens/SingleEvent";
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
@@ -34,6 +35,7 @@ export const DrawerNavigator = () => {
       <Drawer.Screen name="Map" component={MapScreen} />
       <Drawer.Screen name="Gallery" component={GalleryScreen} />
       <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="SingleEvent" component={EventScreen} />
     </Drawer.Navigator>
   );
 };
