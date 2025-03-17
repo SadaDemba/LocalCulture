@@ -20,6 +20,7 @@ import { db, auth } from "./firebaseConfig";
 import { User } from "@/models/User";
 import { Event } from "@/models/Event";
 import { Location } from "@/models/Location";
+import { Coordinates } from "@/models/Coordinates";
 
 export const saveUserToFireStore = async (
   firstName: string,
@@ -226,10 +227,11 @@ export const convertToEvent = (
   const eventData = eventSnap.data();
   let location = undefined;
   if (eventData.location) {
+    // console.log("Location: " + eventData.location.c);
     location = new Location(
-      eventData.location.name,
-      eventData.location.latitude,
-      eventData.location.longitude
+        eventData.location.name,
+        eventData.location.address,
+        new Coordinates(eventData.location.coordinates.latitude, eventData.location.coordinates.longitude)
     );
   }
 
