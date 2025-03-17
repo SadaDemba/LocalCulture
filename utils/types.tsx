@@ -3,6 +3,7 @@ export type DrawerParamList = {
   Gallery: undefined;
   Map: undefined;
   Profile: undefined;
+  AddEvent: undefined;
 };
 
 export type RootStackParamList = {
@@ -10,7 +11,12 @@ export type RootStackParamList = {
   Main: undefined;
 };
 
-export type HomeTabParamList = {
+/* export enum authorFilter {
+  "Mes évènements",
+  "AUtres évènements",
+  "Tous les évènements",
+} */
+/* export type HomeTabParamList = {
   Home: undefined;
   History: undefined;
-};
+}; */
