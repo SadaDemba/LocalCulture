@@ -4,6 +4,7 @@ export type DrawerParamList = {
   Map: undefined;
   Profile: undefined;
   AddEvent: undefined;
+  SingleEvent: undefined;
 };
 
 export type RootStackParamList = {

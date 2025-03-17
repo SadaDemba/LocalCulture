@@ -91,6 +91,37 @@ export const deleteUser = async () => {
   }
 };
 
+export const getUserById = async (userId: string) => {
+  if (!userId) {
+    console.error("No user ID provided.");
+    return null;
+  }
+
+  try {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+      const userData = userSnap.data();
+      return new User(
+        userData.firstName || "",
+        userData.lastName || "",
+        userData.email || "",
+        userData.profilePicture || "",
+        userData.bio || "",
+        userData.interests || [],
+        userSnap.id
+      );
+    } else {
+      console.log("No user found with ID:", userId);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user data: ", error);
+    return null;
+  }
+};
+
 export const createEvent = async (event: Event) => {
   try {
     event.createdAt = new Date().toISOString();
