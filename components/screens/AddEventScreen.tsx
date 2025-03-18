@@ -1,16 +1,27 @@
-import React, {useState} from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {TextInput, Button, Text, List, Divider} from "react-native-paper";
+import { TextInput, Button, Text, List, Divider } from "react-native-paper";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Event } from "@/models/Event";
 import { createEvent } from "@/utils/FireStore";
-import { GeocodingResult, GeocodingService} from "@/components/services/GeocodingService";
-import {Location } from "@/models/Location"
-import {Coordinates} from "@/models/Coordinates";
+import {
+  GeocodingResult,
+  GeocodingService,
+} from "@/components/services/GeocodingService";
+import { Location } from "@/models/Location";
+import { Coordinates } from "@/models/Coordinates";
+import { useNavigation } from "expo-router";
 
 const eventSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
@@ -26,16 +37,16 @@ const eventSchema = z.object({
     .array(z.string().min(3, "Au moins trois caractères"))
     .optional(),
   updatedAt: z.string().optional(),
-  locationName: z.string().optional(),
-  locationAddress: z.string().optional(),
+  locationName: z.string().min(2, "le nom est requis."),
+  locationAddress: z.string().min(3, "L'adresse est requise."),
 });
-
 type EventFormValues = z.infer<typeof eventSchema>;
 
-export function AddEventScreen() {
+export function AddEventScreen({ navigation }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<GeocodingResult | null>(null);
+  const [selectedLocation, setSelectedLocation] =
+    useState<GeocodingResult | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const {
@@ -44,16 +55,21 @@ export function AddEventScreen() {
     control,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
+      title: "",
+      description: "",
+      beginDate: "",
+      endDate: "",
+      tags: [],
+      participants: [],
       locationName: "",
       locationAddress: "",
-    }
+    },
   });
-
-  const watchedLocationAddress = watch("locationAddress");
 
   const {
     fields: tagFields,
@@ -95,7 +111,7 @@ export function AddEventScreen() {
   const selectLocation = (location: GeocodingResult) => {
     setSelectedLocation(location);
     setValue("locationAddress", location.display_name);
-    setValue("locationName", location.display_name.split(',')[0]); // Use first part as name
+    setValue("locationName", location.display_name.split(",")[0]); // Use first part as name
     setSearchResults([]);
   };
 
@@ -112,12 +128,12 @@ export function AddEventScreen() {
     let eventLocation: Location | undefined = undefined;
     if (selectedLocation && data.locationName && data.locationAddress) {
       eventLocation = new Location(
-          data.locationName,
-          data.locationAddress,
-          new Coordinates(
-              parseFloat(selectedLocation.lat),
-              parseFloat(selectedLocation.lon)
-          )
+        data.locationName,
+        data.locationAddress,
+        new Coordinates(
+          parseFloat(selectedLocation.lat),
+          parseFloat(selectedLocation.lon)
+        )
       );
     }
 
@@ -134,6 +150,22 @@ export function AddEventScreen() {
 
     console.log("Événement créé :", event);
     createEvent(event);
+  };
+
+  const handleCancel = () => {
+    Alert.alert("Confirmation", "Êtes-vous sûr de vouloir annuler ?", [
+      {
+        text: "Non",
+        style: "cancel",
+      },
+      {
+        text: "Oui",
+        onPress: () => {
+          navigation.goBack();
+          reset();
+        },
+      },
+    ]);
   };
 
   return (
@@ -191,81 +223,94 @@ export function AddEventScreen() {
             )}
           </View>
 
-
           {/* Location Fields */}
           <View style={{ marginTop: 10 }}>
             <Text style={{ fontWeight: "bold", marginBottom: 5 }}>Lieu :</Text>
-
-            <Controller
+            <View>
+              <Controller
                 control={control}
                 name="locationName"
                 render={({ field }) => (
-                    <TextInput
-                        label="Nom du lieu"
-                        mode="outlined"
-                        value={field.value}
-                        onChangeText={field.onChange}
-                        style={{ marginBottom: 10 }}
-                    />
+                  <TextInput
+                    label="* Nom du lieu"
+                    mode="outlined"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={{ marginBottom: 10 }}
+                    error={!!errors.locationName}
+                  />
                 )}
-            />
+              />
+              {errors.locationName && (
+                <Text style={{ color: "red", marginBottom: 10 }}>
+                  {errors.locationName.message}
+                </Text>
+              )}
+            </View>
 
-            <Controller
+            <View>
+              <Controller
                 control={control}
                 name="locationAddress"
                 render={({ field }) => (
-                    <TextInput
-                        label="Adresse"
-                        mode="outlined"
-                        value={field.value}
-                        onChangeText={(text) => {
-                          field.onChange(text);
+                  <TextInput
+                    label="* Adresse"
+                    mode="outlined"
+                    value={field.value}
+                    // Ajoute des points de suspension à la fin
 
-                          // Always reset selected location when text changes
-                          if (text !== selectedLocation?.display_name) {
-                            setSelectedLocation(null);
-                          }
+                    multiline
+                    onChangeText={(text) => {
+                      field.onChange(text);
 
-                          // Always call searchAddress - throttling is handled internally
-                          // This simplifies the logic here and makes the code more maintainable
-                          searchAddress(text);
-                        }}
-                        style={{ marginBottom: 5 }}
-                        right={isSearching ? <TextInput.Icon icon="magnify" /> : null}
-                    />
+                      // Always reset selected location when text changes
+                      if (text !== selectedLocation?.display_name) {
+                        setSelectedLocation(null);
+                      }
+
+                      // Always call searchAddress - throttling is handled internally
+                      // This simplifies the logic here and makes the code more maintainable
+                      searchAddress(text);
+                    }}
+                    style={{ marginBottom: 5 }}
+                    right={
+                      isSearching ? <TextInput.Icon icon="magnify" /> : null
+                    }
+                    error={!!errors.locationAddress}
+                  />
                 )}
-            />
+              />
+              {errors.locationAddress && (
+                <Text style={{ color: "red", marginBottom: 10 }}>
+                  {errors.locationAddress.message}
+                </Text>
+              )}
+            </View>
 
-            {/* Search Results */}
             {searchResults.length > 0 && (
-                <View style={styles.resultsContainer}>
-                  {searchResults.map((result) => (
-                      <React.Fragment key={result.place_id}>
-                        <List.Item
-                            title={result.display_name.split(',')[0]}
-                            description={result.display_name}
-                            onPress={() => selectLocation(result)}
-                            left={props => <List.Icon {...props} icon="map-marker" />}
-                        />
-                        <Divider />
-                      </React.Fragment>
-                  ))}
-                </View>
-            )}
-
-            {/* Selected Location Info */}
-            {selectedLocation && (
-                <View style={styles.selectedLocationContainer}>
-                  <Text style={styles.selectedLocationText}>
-                    Lieu sélectionné: {selectedLocation.display_name}
-                  </Text>
-                  <Text style={styles.coordinatesText}>
-                    Coordonnées: {selectedLocation.lat}, {selectedLocation.lon}
-                  </Text>
-                </View>
+              <FlatList
+                data={searchResults}
+                nestedScrollEnabled={true}
+                keyExtractor={(item) => item.place_id.toString()}
+                style={styles.resultsContainer}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => selectLocation(item)}
+                    style={styles.resultItem}
+                  >
+                    <List.Item
+                      title={item.display_name.split(",")[0]}
+                      description={item.display_name}
+                      left={(props) => (
+                        <List.Icon {...props} icon="map-marker" />
+                      )}
+                    />
+                  </TouchableOpacity>
+                )}
+              />
             )}
           </View>
-
 
           <View>
             <Controller
@@ -389,13 +434,37 @@ export function AddEventScreen() {
             </Button>
           </View>
 
-          <Button
-            mode="contained"
-            onPress={handleSubmit(onSubmit)}
-            style={{ marginTop: 20, marginBottom: 10 }}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 20,
+              marginBottom: 10,
+            }}
           >
-            Créer l'événement
-          </Button>
+            <Button
+              mode="contained"
+              onPress={handleCancel}
+              style={{
+                flex: 1,
+                marginRight: 15,
+                backgroundColor: "red",
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSubmit(onSubmit)}
+              style={{
+                flex: 1,
+                marginLeft: 15,
+                backgroundColor: "green",
+              }}
+            >
+              Valider
+            </Button>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -414,6 +483,7 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 5,
     maxHeight: 200,
+    elevation: 3,
   },
   selectedLocationContainer: {
     backgroundColor: "#f5f5f5",
@@ -427,5 +497,10 @@ const styles = StyleSheet.create({
   coordinatesText: {
     fontStyle: "italic",
     color: "#666",
+  },
+  resultItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
   },
 });

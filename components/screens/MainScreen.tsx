@@ -414,7 +414,6 @@ export function MainScreen({ navigation }) {
   };
 
   const renderEvent = ({ item }: { item: Event }) => {
-    // Formatage de la date pour l'affichage
     const formatDate = (dateString: string) => {
       if (!dateString) return "";
       const date = new Date(dateString);
@@ -445,14 +444,12 @@ export function MainScreen({ navigation }) {
             {item.description}
           </Text>
 
-          {item.location && (
-            <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={16} color="#665b41" />
-              <Text style={styles.locationText}>
-                {item.location.address || "Emplacement non spécifié"}
-              </Text>
-            </View>
-          )}
+          <View style={styles.locationContainer}>
+            <Ionicons name="location-outline" size={16} color="#665b41" />
+            <Text style={styles.locationText}>
+              {item.location ? item.location.name : "Emplacement non spécifié"}
+            </Text>
+          </View>
         </View>
 
         {item.tags && item.tags.length > 0 && (
@@ -508,7 +505,9 @@ export function MainScreen({ navigation }) {
         <TouchableOpacity
           style={styles.floatingButton}
           onPress={() => {
-            navigation.navigate("AddEvent");
+            navigation.navigate("AddEvent", {
+              navigation: navigation,
+            });
           }}
         >
           <Ionicons name="add" size={34} color="white" />

@@ -258,12 +258,14 @@ export const convertToEvent = (
   const eventData = eventSnap.data();
 
   let location = undefined;
-  if (eventData.location) {
-    // console.log("Location: " + eventData.location.c);
+  if (eventData.location && eventData.location.coordinates) {
     location = new Location(
-        eventData.location.name,
-        eventData.location.address,
-        new Coordinates(eventData.location.coordinates.latitude, eventData.location.coordinates.longitude)
+      eventData.location.name,
+      eventData.location.address,
+      new Coordinates(
+        eventData.location.coordinates.latitude,
+        eventData.location.coordinates.longitude
+      )
     );
   }
 
@@ -377,8 +379,7 @@ export const getEvents = async (options: EventQueryOptions = {}) => {
     const querySnapshot = await getDocs(eventsQuery);
 
     const events = querySnapshot.docs.map((doc) => convertToEvent(doc));
-    console.log("events");
-    console.log(events);
+
     return events;
   } catch (error) {
     console.error("Error fetching events: ", error);

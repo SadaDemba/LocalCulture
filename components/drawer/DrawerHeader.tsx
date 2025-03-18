@@ -13,7 +13,7 @@ export const DrawerHeader = () => {
         <MaterialCommunityIcons
           name="account-circle"
           size={60}
-          color="#fac039"
+          color="#ffffff"
         />
       </View>
       <Text style={styles.userName}>

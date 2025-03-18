@@ -35,7 +35,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   activeMenuItem: {
-    backgroundColor: "#fac039",
+    backgroundColor: "#665b41",
   },
   activeMenuItemText: {
     color: "white",
@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fac039",
+    backgroundColor: "#665b41",
     padding: 18,
     borderRadius: 0,
     marginBottom: 0,
