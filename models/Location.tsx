@@ -15,7 +15,7 @@ export class Location {
     return {
       name: this.name,
       address: this.address,
-      coordinates: this.coordinates.toJSON,
+      coordinates: this.coordinates.toJSON(),
     };
   }
 }

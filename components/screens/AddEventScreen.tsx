@@ -1,13 +1,16 @@
-import React from "react";
+import React, {useState} from "react";
 import { View, ScrollView, StyleSheet } from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { TextInput, Button, Text } from "react-native-paper";
+import {TextInput, Button, Text, List, Divider} from "react-native-paper";
 import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Event } from "@/models/Event";
 import { createEvent } from "@/utils/FireStore";
+import { GeocodingResult, GeocodingService} from "@/components/services/GeocodingService";
+import {Location } from "@/models/Location"
+import {Coordinates} from "@/models/Coordinates";
 
 const eventSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
@@ -23,19 +26,34 @@ const eventSchema = z.object({
     .array(z.string().min(3, "Au moins trois caractères"))
     .optional(),
   updatedAt: z.string().optional(),
+  locationName: z.string().optional(),
+  locationAddress: z.string().optional(),
 });
 
 type EventFormValues = z.infer<typeof eventSchema>;
 
 export function AddEventScreen() {
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<GeocodingResult | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const {
     register,
     handleSubmit,
     control,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
+    defaultValues: {
+      locationName: "",
+      locationAddress: "",
+    }
   });
+
+  const watchedLocationAddress = watch("locationAddress");
 
   const {
     fields: tagFields,
@@ -55,6 +73,32 @@ export function AddEventScreen() {
     name: "participants",
   });
 
+  const searchAddress = async (query: string) => {
+    if (!query || query.length < 3) return;
+
+    setIsSearching(true);
+    setSearchQuery(query);
+
+    try {
+      // Use the throttled version instead of the regular search
+      const results = await GeocodingService.searchAddressThrottled(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Error searching for address:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Select a location from search results
+  const selectLocation = (location: GeocodingResult) => {
+    setSelectedLocation(location);
+    setValue("locationAddress", location.display_name);
+    setValue("locationName", location.display_name.split(',')[0]); // Use first part as name
+    setSearchResults([]);
+  };
+
   const onSubmit = (data: EventFormValues) => {
     const formattedData = {
       ...data,
@@ -62,7 +106,21 @@ export function AddEventScreen() {
       beginDate: new Date(data.beginDate).toISOString(),
       endDate: data.endDate ? new Date(data.endDate).toISOString() : "",
     };
+
     formattedData.tags.map((tag) => tag.toLowerCase().trim());
+
+    let eventLocation: Location | undefined = undefined;
+    if (selectedLocation && data.locationName && data.locationAddress) {
+      eventLocation = new Location(
+          data.locationName,
+          data.locationAddress,
+          new Coordinates(
+              parseFloat(selectedLocation.lat),
+              parseFloat(selectedLocation.lon)
+          )
+      );
+    }
+
     const event = new Event(
       formattedData.title,
       formattedData.description,
@@ -70,9 +128,10 @@ export function AddEventScreen() {
       "",
       formattedData.tags,
       formattedData.participants,
-      undefined,
+      eventLocation,
       formattedData.endDate
     );
+
     console.log("Événement créé :", event);
     createEvent(event);
   };
@@ -131,6 +190,82 @@ export function AddEventScreen() {
               </Text>
             )}
           </View>
+
+
+          {/* Location Fields */}
+          <View style={{ marginTop: 10 }}>
+            <Text style={{ fontWeight: "bold", marginBottom: 5 }}>Lieu :</Text>
+
+            <Controller
+                control={control}
+                name="locationName"
+                render={({ field }) => (
+                    <TextInput
+                        label="Nom du lieu"
+                        mode="outlined"
+                        value={field.value}
+                        onChangeText={field.onChange}
+                        style={{ marginBottom: 10 }}
+                    />
+                )}
+            />
+
+            <Controller
+                control={control}
+                name="locationAddress"
+                render={({ field }) => (
+                    <TextInput
+                        label="Adresse"
+                        mode="outlined"
+                        value={field.value}
+                        onChangeText={(text) => {
+                          field.onChange(text);
+
+                          // Always reset selected location when text changes
+                          if (text !== selectedLocation?.display_name) {
+                            setSelectedLocation(null);
+                          }
+
+                          // Always call searchAddress - throttling is handled internally
+                          // This simplifies the logic here and makes the code more maintainable
+                          searchAddress(text);
+                        }}
+                        style={{ marginBottom: 5 }}
+                        right={isSearching ? <TextInput.Icon icon="magnify" /> : null}
+                    />
+                )}
+            />
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+                <View style={styles.resultsContainer}>
+                  {searchResults.map((result) => (
+                      <React.Fragment key={result.place_id}>
+                        <List.Item
+                            title={result.display_name.split(',')[0]}
+                            description={result.display_name}
+                            onPress={() => selectLocation(result)}
+                            left={props => <List.Icon {...props} icon="map-marker" />}
+                        />
+                        <Divider />
+                      </React.Fragment>
+                  ))}
+                </View>
+            )}
+
+            {/* Selected Location Info */}
+            {selectedLocation && (
+                <View style={styles.selectedLocationContainer}>
+                  <Text style={styles.selectedLocationText}>
+                    Lieu sélectionné: {selectedLocation.display_name}
+                  </Text>
+                  <Text style={styles.coordinatesText}>
+                    Coordonnées: {selectedLocation.lat}, {selectedLocation.lon}
+                  </Text>
+                </View>
+            )}
+          </View>
+
 
           <View>
             <Controller
@@ -272,5 +407,25 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     paddingTop: 10,
     alignSelf: "flex-start",
+  },
+  resultsContainer: {
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 5,
+    maxHeight: 200,
+  },
+  selectedLocationContainer: {
+    backgroundColor: "#f5f5f5",
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  selectedLocationText: {
+    fontWeight: "bold",
+  },
+  coordinatesText: {
+    fontStyle: "italic",
+    color: "#666",
   },
 });
