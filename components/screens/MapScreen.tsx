@@ -1,40 +1,181 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import React, {useCallback, useEffect, useState} from "react";
+import {View, Text, StyleSheet, Dimensions, Alert} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LatLng, LeafletView } from 'react-native-leaflet-view';
-
-// Import types
-import { Event, MapMarker } from '../../types';
-
-// Import category icons
+import * as Location from 'expo-location';
+import { Stack, useFocusEffect, useNavigation } from "expo-router";
+import { Event } from "@/models/Event";
 import { getCategoryIcon } from '../markers/CategoryIcons';
-
-// Import static event data
-// We need to explicitly cast the imported JSON as an array of Event objects
-const eventData = require('../../data/events.json') as Event[];
+import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
+import {Button} from "react-native-paper";
 
 // Get device dimensions
 const { width, height } = Dimensions.get('window');
 
-export function MapScreen() {
+interface MapMarker {
+    id: string;
+    position: { lat: number; lng: number };
+    icon: string;
+    size: [number, number];
+    title: string;
+    description: string;
+}
+
+export function MapScreen({ navigation }) {
+    const [events, setEvents] = useState<Event[]>([]);
     const [markers, setMarkers] = useState<MapMarker[]>([]);
     const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 }); // Paris center as default
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [locationPermission, setLocationPermission] = useState(false);
+    const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+    // Request location permissions
+    const requestLocationPermission = async () => {
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+
+            if (status !== 'granted') {
+                Alert.alert(
+                    "Permission refusée",
+                    "Nous avons besoin de votre localisation pour afficher les évènements proches de vous. Vous pouvez modifier ce paramètre dans les réglages de votre appareil.",
+                    [{ text: "OK" }]
+                );
+                setLocationPermission(false);
+                return;
+            }
+
+            setLocationPermission(true);
+            getUserLocation();
+        } catch (error) {
+            console.error("Error requesting location permission:", error);
+            Alert.alert("Erreur", "Impossible d'accéder à votre localisation");
+        }
+    };
+
+
+    // Get user's current location
+    const getUserLocation = async () => {
+        try {
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            const userPos = {
+                lat: location.coords.latitude,
+                lng: location.coords.longitude
+            };
+
+            setUserLocation(userPos);
+            setMapCenter(userPos); // Center map on user's location
+
+            console.log("User location:", userPos);
+        } catch (error) {
+            console.error("Error getting location:", error);
+            Alert.alert("Erreur", "Impossible de récupérer votre position");
+        }
+    };
 
     useEffect(() => {
-        // Convert event data to map markers
-        const eventMarkers: MapMarker[] = eventData.map(event => ({
-            id: event.id,
-            position: event.location.coordinates,
-            icon: getCategoryIcon(event.category),
-            size: [32, 32],
-            title: event.title,
-            description: `${event.description} - ${event.date} at ${event.time}`
-        }));
-        
-        setMarkers(eventMarkers);
+        requestLocationPermission();
     }, []);
 
+    const fetchEvents = async () => {
+        try {
+            // setRefreshing(true);
+            // setFilters();
+
+            console.log("Fetching events");
+            const fetchedEvents = await getEvents();
+            if (fetchedEvents) {
+                setEvents(fetchedEvents);
+                console.log(`Events loaded: ${fetchedEvents.length}`);
+            }            // const tags = await getAllTags();
+            // if (events) {
+            //     setEvents(events);
+            // }
+            // if (tags) {
+            //     setTags(tags);
+            // }
+        } catch (error) {
+            console.error("Erreur lors du chargement:", error);
+            Alert.alert("Erreur", "Impossible de charger les évènements");
+        } finally {
+            // setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!events || events.length === 0) {
+            console.log("No events to display on map");
+            return;
+        }
+
+        console.log(`Converting ${events.length} events to map markers`);
+
+
+        const eventMarkers: MapMarker[] = events
+            .filter(event =>  event.location && event.location.coordinates)
+            .map(event => {
+                if (!event.location ||
+                    !event.location.coordinates) {
+                    return null;
+                }
+
+                console.log(event.location.coordinates);
+
+                return {
+                    id: event.getId(),
+                    position: {
+                        lat: event.location.coordinates.latitude,
+                        lng: event.location.coordinates.longitude
+                    },
+                    icon: getCategoryIcon(event.tags[0]),
+                    size: [32, 32],
+                    title: event.title,
+                    description: event.description,
+                };
+            })
+            .filter(marker => marker !== null) as MapMarker[];
+
+        console.log(`Created ${eventMarkers.length} markers`);
+        console.log(eventMarkers);
+
+
+        setMarkers(eventMarkers);
+
+        //Set map center to userLocation if given else, set to an eventMarker
+        if (locationPermission && userLocation) {
+            setMapCenter(userLocation);
+        } else if (eventMarkers.length > 0) {
+            setMapCenter(eventMarkers[0].position);
+        }
+    }, [events]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchEvents();
+            if (locationPermission) {
+                getUserLocation();
+            }
+            return () => {};
+        }, [])
+    );
+
+    const onRefresh = () => {
+        fetchEvents();
+
+        if (locationPermission) {
+            getUserLocation();
+        }
+    };
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
 
     const handleMessageReceived = (message: any) => {
         try {
@@ -42,14 +183,14 @@ export function MapScreen() {
 
             // Handle marker click event
             if (event === 'onMapMarkerClicked') {
-                console.log('Marker clicked:', payload.mapMarkerID);
+                // console.log('Marker clicked:', payload.mapMarkerID);
                 const markerId = payload.mapMarkerID;
-                console.log('Marker clicked:', markerId);
+                // console.log('Marker clicked:', markerId);
 
                 // Find the selected event
-                const foundEvent = eventData.find(event => event.id === markerId);
+                const foundEvent = events.find(event => event.getId() === markerId);
                 if (foundEvent) {
-                    console.log('Event details:', foundEvent);
+                    // console.log('Event details:', foundEvent);
                     setSelectedEvent(foundEvent);
                 }
             }
@@ -65,7 +206,6 @@ export function MapScreen() {
             </View>
             <View style={styles.mapContainer}>
                 <LeafletView
-                    // style={styles.map}
                     zoom={13}
                     mapCenterPosition={mapCenter}
                     mapMarkers={markers}
@@ -83,9 +223,21 @@ export function MapScreen() {
                 <View style={styles.eventInfoContainer}>
                     <Text style={styles.eventTitle}>{selectedEvent.title}</Text>
                     <Text style={styles.eventDetails}>
-                        {selectedEvent.date} at {selectedEvent.time} • {selectedEvent.location.name}
+                        {formatDate(selectedEvent.beginDate)} • {selectedEvent.location.name}
                     </Text>
                     <Text style={styles.eventDescription}>{selectedEvent.description}</Text>
+                    <Button
+                        onPress={() => {
+                        navigation.navigate("SingleEvent", {
+                            ev: selectedEvent,
+                            navigation: navigation,
+                        });
+                    }} children={
+                        <Text style={styles.buttonDetails}>
+                            Voir détail
+                        </Text>
+                    }
+                    />
                 </View>
             )}
 
@@ -150,5 +302,14 @@ const styles = StyleSheet.create({
     eventDescription: {
         fontSize: 14,
         color: '#333',
+    },
+    buttonDetails: {
+        flexDirection: 'row',
+        fontSize: 14,
+        color: '#666',
+        // marginBottom: 8,
+        alignContent: 'flex-end',
+        alignItems: "flex-end",
+        textDecorationLine: "underline"
     }
 });
