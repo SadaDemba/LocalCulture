@@ -2,19 +2,15 @@ import React, {useCallback, useEffect, useState} from "react";
 import {View, Text, StyleSheet, Dimensions, Alert} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LatLng, LeafletView } from 'react-native-leaflet-view';
+import * as Location from 'expo-location';
 
 // Import types
-// import { MapMarker } from '../../types';
 import { Event } from "@/models/Event";
 
 // Import category icons
 import { getCategoryIcon } from '../markers/CategoryIcons';
 import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
 import {useFocusEffect} from "expo-router";
-
-// Import static event data
-// We need to explicitly cast the imported JSON as an array of Event objects
-// const eventData = require('../../data/events.json') as Event[];
 
 // Get device dimensions
 const { width, height } = Dimensions.get('window');
@@ -33,6 +29,58 @@ export function MapScreen() {
     const [markers, setMarkers] = useState<MapMarker[]>([]);
     const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 }); // Paris center as default
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [locationPermission, setLocationPermission] = useState(false);
+    const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+
+    // Request location permissions
+    const requestLocationPermission = async () => {
+        try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+
+            if (status !== 'granted') {
+                Alert.alert(
+                    "Permission refusée",
+                    "Nous avons besoin de votre localisation pour afficher les évènements proches de vous. Vous pouvez modifier ce paramètre dans les réglages de votre appareil.",
+                    [{ text: "OK" }]
+                );
+                setLocationPermission(false);
+                return;
+            }
+
+            setLocationPermission(true);
+            getUserLocation();
+        } catch (error) {
+            console.error("Error requesting location permission:", error);
+            Alert.alert("Erreur", "Impossible d'accéder à votre localisation");
+        }
+    };
+
+
+    // Get user's current location
+    const getUserLocation = async () => {
+        try {
+            const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+            });
+
+            const userPos = {
+                lat: location.coords.latitude,
+                lng: location.coords.longitude
+            };
+
+            setUserLocation(userPos);
+            setMapCenter(userPos); // Center map on user's location
+
+            console.log("User location:", userPos);
+        } catch (error) {
+            console.error("Error getting location:", error);
+            Alert.alert("Erreur", "Impossible de récupérer votre position");
+        }
+    };
+
+    useEffect(() => {
+        requestLocationPermission();
+    }, []);
 
     const fetchEvents = async () => {
         try {
@@ -67,22 +115,12 @@ export function MapScreen() {
 
         console.log(`Converting ${events.length} events to map markers`);
 
-        // Convert event data to map markers
-        // const eventMarkers: MapMarker[] = events.map(event => ({
-        //     id: event.id,
-        //     position: event.location!.coordinates,
-        //     icon: getCategoryIcon(event.tags[0]),
-        //     size: [32, 32],
-        //     title: event.title,
-        //     description: `${event.description} - ${event.beginDate}`
-        // }));
 
         const eventMarkers: MapMarker[] = events
             .filter(event =>  event.location && event.location.coordinates)
             .map(event => {
                 if (!event.location ||
                     !event.location.coordinates) {
-                    console.error("Could not find location", event.location);
                     return null;
                 }
 
@@ -107,10 +145,6 @@ export function MapScreen() {
 
 
         setMarkers(eventMarkers);
-        if (eventMarkers.length > 0) {
-            setMapCenter(eventMarkers[0].position);
-            // Will change with user position later
-        }
     }, [events]);
 
     useFocusEffect(
@@ -142,7 +176,7 @@ export function MapScreen() {
                 }
             }
         } catch (error) {
-            // console.error('Error parsing message:', error);
+            console.error('Error parsing message:', error);
         }
     };
 
@@ -153,7 +187,6 @@ export function MapScreen() {
             </View>
             <View style={styles.mapContainer}>
                 <LeafletView
-                    // style={styles.map}
                     zoom={13}
                     mapCenterPosition={mapCenter}
                     mapMarkers={markers}
