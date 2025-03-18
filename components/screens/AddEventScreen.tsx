@@ -1,5 +1,5 @@
 import React from "react";
-import { View, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet, Alert } from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,18 +24,19 @@ const eventSchema = z.object({
     .optional(),
   updatedAt: z.string().optional(),
 });
-
 type EventFormValues = z.infer<typeof eventSchema>;
 
-export function AddEventScreen() {
+export function AddEventScreen({ route }) {
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
   });
+  const { navigation } = route.params;
 
   const {
     fields: tagFields,
@@ -75,6 +76,22 @@ export function AddEventScreen() {
     );
     console.log("Événement créé :", event);
     createEvent(event);
+  };
+
+  const handleCancel = () => {
+    Alert.alert("Confirmation", "Êtes-vous sûr de vouloir annuler ?", [
+      {
+        text: "Non",
+        style: "cancel",
+      },
+      {
+        text: "Oui",
+        onPress: () => {
+          navigation.goBack();
+          reset();
+        },
+      },
+    ]);
   };
 
   return (
@@ -254,13 +271,37 @@ export function AddEventScreen() {
             </Button>
           </View>
 
-          <Button
-            mode="contained"
-            onPress={handleSubmit(onSubmit)}
-            style={{ marginTop: 20, marginBottom: 10 }}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 20,
+              marginBottom: 10,
+            }}
           >
-            Créer l'événement
-          </Button>
+            <Button
+              mode="contained"
+              onPress={handleCancel}
+              style={{
+                flex: 1,
+                marginRight: 15,
+                backgroundColor: "red",
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSubmit(onSubmit)}
+              style={{
+                flex: 1,
+                marginLeft: 15,
+                backgroundColor: "green",
+              }}
+            >
+              Valider
+            </Button>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
