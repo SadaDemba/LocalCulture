@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, ScrollView, StyleSheet, Alert } from "react-native";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +21,7 @@ import {
 } from "@/components/services/GeocodingService";
 import { Location } from "@/models/Location";
 import { Coordinates } from "@/models/Coordinates";
+import { useNavigation } from "expo-router";
 
 const eventSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
@@ -29,12 +37,12 @@ const eventSchema = z.object({
     .array(z.string().min(3, "Au moins trois caractères"))
     .optional(),
   updatedAt: z.string().optional(),
-  locationName: z.string().optional(),
-  locationAddress: z.string().optional(),
+  locationName: z.string().min(2, "le nom est requis."),
+  locationAddress: z.string().min(3, "L'adresse est requise."),
 });
 type EventFormValues = z.infer<typeof eventSchema>;
 
-export function AddEventScreen({ route }) {
+export function AddEventScreen({ navigation }) {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
   const [selectedLocation, setSelectedLocation] =
@@ -52,13 +60,16 @@ export function AddEventScreen({ route }) {
   } = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
+      title: "",
+      description: "",
+      beginDate: "",
+      endDate: "",
+      tags: [],
+      participants: [],
       locationName: "",
       locationAddress: "",
     },
   });
-
-  const watchedLocationAddress = watch("locationAddress");
-  const { navigation } = route.params;
 
   const {
     fields: tagFields,
@@ -215,76 +226,89 @@ export function AddEventScreen({ route }) {
           {/* Location Fields */}
           <View style={{ marginTop: 10 }}>
             <Text style={{ fontWeight: "bold", marginBottom: 5 }}>Lieu :</Text>
-
-            <Controller
-              control={control}
-              name="locationName"
-              render={({ field }) => (
-                <TextInput
-                  label="Nom du lieu"
-                  mode="outlined"
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  style={{ marginBottom: 10 }}
-                />
+            <View>
+              <Controller
+                control={control}
+                name="locationName"
+                render={({ field }) => (
+                  <TextInput
+                    label="* Nom du lieu"
+                    mode="outlined"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={{ marginBottom: 10 }}
+                    error={!!errors.locationName}
+                  />
+                )}
+              />
+              {errors.locationName && (
+                <Text style={{ color: "red", marginBottom: 10 }}>
+                  {errors.locationName.message}
+                </Text>
               )}
-            />
+            </View>
 
-            <Controller
-              control={control}
-              name="locationAddress"
-              render={({ field }) => (
-                <TextInput
-                  label="Adresse"
-                  mode="outlined"
-                  value={field.value}
-                  onChangeText={(text) => {
-                    field.onChange(text);
+            <View>
+              <Controller
+                control={control}
+                name="locationAddress"
+                render={({ field }) => (
+                  <TextInput
+                    label="* Adresse"
+                    mode="outlined"
+                    value={field.value}
+                    // Ajoute des points de suspension à la fin
 
-                    // Always reset selected location when text changes
-                    if (text !== selectedLocation?.display_name) {
-                      setSelectedLocation(null);
+                    multiline
+                    onChangeText={(text) => {
+                      field.onChange(text);
+
+                      // Always reset selected location when text changes
+                      if (text !== selectedLocation?.display_name) {
+                        setSelectedLocation(null);
+                      }
+
+                      // Always call searchAddress - throttling is handled internally
+                      // This simplifies the logic here and makes the code more maintainable
+                      searchAddress(text);
+                    }}
+                    style={{ marginBottom: 5 }}
+                    right={
+                      isSearching ? <TextInput.Icon icon="magnify" /> : null
                     }
-
-                    // Always call searchAddress - throttling is handled internally
-                    // This simplifies the logic here and makes the code more maintainable
-                    searchAddress(text);
-                  }}
-                  style={{ marginBottom: 5 }}
-                  right={isSearching ? <TextInput.Icon icon="magnify" /> : null}
-                />
+                    error={!!errors.locationAddress}
+                  />
+                )}
+              />
+              {errors.locationAddress && (
+                <Text style={{ color: "red", marginBottom: 10 }}>
+                  {errors.locationAddress.message}
+                </Text>
               )}
-            />
+            </View>
 
-            {/* Search Results */}
             {searchResults.length > 0 && (
-              <View style={styles.resultsContainer}>
-                {searchResults.map((result) => (
-                  <React.Fragment key={result.place_id}>
+              <FlatList
+                data={searchResults}
+                nestedScrollEnabled={true}
+                keyExtractor={(item) => item.place_id.toString()}
+                style={styles.resultsContainer}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => selectLocation(item)}
+                    style={styles.resultItem}
+                  >
                     <List.Item
-                      title={result.display_name.split(",")[0]}
-                      description={result.display_name}
-                      onPress={() => selectLocation(result)}
+                      title={item.display_name.split(",")[0]}
+                      description={item.display_name}
                       left={(props) => (
                         <List.Icon {...props} icon="map-marker" />
                       )}
                     />
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </View>
-            )}
-
-            {/* Selected Location Info */}
-            {selectedLocation && (
-              <View style={styles.selectedLocationContainer}>
-                <Text style={styles.selectedLocationText}>
-                  Lieu sélectionné: {selectedLocation.display_name}
-                </Text>
-                <Text style={styles.coordinatesText}>
-                  Coordonnées: {selectedLocation.lat}, {selectedLocation.lon}
-                </Text>
-              </View>
+                  </TouchableOpacity>
+                )}
+              />
             )}
           </View>
 
@@ -459,6 +483,7 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 5,
     maxHeight: 200,
+    elevation: 3,
   },
   selectedLocationContainer: {
     backgroundColor: "#f5f5f5",
@@ -472,5 +497,10 @@ const styles = StyleSheet.create({
   coordinatesText: {
     fontStyle: "italic",
     color: "#666",
+  },
+  resultItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
   },
 });
