@@ -3,14 +3,11 @@ import {View, Text, StyleSheet, Dimensions, Alert} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LatLng, LeafletView } from 'react-native-leaflet-view';
 import * as Location from 'expo-location';
-
-// Import types
+import { Stack, useFocusEffect, useNavigation } from "expo-router";
 import { Event } from "@/models/Event";
-
-// Import category icons
 import { getCategoryIcon } from '../markers/CategoryIcons';
 import { getAllEvents, getAllTags, getEvents } from "@/utils/FireStore";
-import {useFocusEffect} from "expo-router";
+import {Button} from "react-native-paper";
 
 // Get device dimensions
 const { width, height } = Dimensions.get('window');
@@ -24,7 +21,7 @@ interface MapMarker {
     description: string;
 }
 
-export function MapScreen() {
+export function MapScreen({ navigation }) {
     const [events, setEvents] = useState<Event[]>([]);
     const [markers, setMarkers] = useState<MapMarker[]>([]);
     const [mapCenter, setMapCenter] = useState({ lat: 48.8566, lng: 2.3522 }); // Paris center as default
@@ -145,17 +142,39 @@ export function MapScreen() {
 
 
         setMarkers(eventMarkers);
+
+        //Set map center to userLocation if given else, set to an eventMarker
+        if (locationPermission && userLocation) {
+            setMapCenter(userLocation);
+        } else if (eventMarkers.length > 0) {
+            setMapCenter(eventMarkers[0].position);
+        }
     }, [events]);
 
     useFocusEffect(
         useCallback(() => {
             fetchEvents();
+            if (locationPermission) {
+                getUserLocation();
+            }
             return () => {};
         }, [])
     );
 
     const onRefresh = () => {
         fetchEvents();
+
+        if (locationPermission) {
+            getUserLocation();
+        }
+    };
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
     };
 
     const handleMessageReceived = (message: any) => {
@@ -169,7 +188,7 @@ export function MapScreen() {
                 // console.log('Marker clicked:', markerId);
 
                 // Find the selected event
-                const foundEvent = eventData.find(event => event.id === markerId);
+                const foundEvent = events.find(event => event.getId() === markerId);
                 if (foundEvent) {
                     // console.log('Event details:', foundEvent);
                     setSelectedEvent(foundEvent);
@@ -204,9 +223,21 @@ export function MapScreen() {
                 <View style={styles.eventInfoContainer}>
                     <Text style={styles.eventTitle}>{selectedEvent.title}</Text>
                     <Text style={styles.eventDetails}>
-                        {selectedEvent.date} at {selectedEvent.time} • {selectedEvent.location.name}
+                        {formatDate(selectedEvent.beginDate)} • {selectedEvent.location.name}
                     </Text>
                     <Text style={styles.eventDescription}>{selectedEvent.description}</Text>
+                    <Button
+                        onPress={() => {
+                        navigation.navigate("SingleEvent", {
+                            ev: selectedEvent,
+                            navigation: navigation,
+                        });
+                    }} children={
+                        <Text style={styles.buttonDetails}>
+                            Voir détail
+                        </Text>
+                    }
+                    />
                 </View>
             )}
 
@@ -271,5 +302,14 @@ const styles = StyleSheet.create({
     eventDescription: {
         fontSize: 14,
         color: '#333',
+    },
+    buttonDetails: {
+        flexDirection: 'row',
+        fontSize: 14,
+        color: '#666',
+        // marginBottom: 8,
+        alignContent: 'flex-end',
+        alignItems: "flex-end",
+        textDecorationLine: "underline"
     }
 });
