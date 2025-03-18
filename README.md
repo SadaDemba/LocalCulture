@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+Louis Landois - Sada Demba Thiam
 # LocalCulture
 =======
 # Welcome to your Expo app 👋
