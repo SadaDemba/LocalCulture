@@ -11,6 +11,10 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../utils/firebaseConfig";
 
+//Ignore Warning from LeafletView since it is coming from the package
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['Warning: LeafletView: Support for defaultProps']);
+
 export default function Index() {
   const Stack = createStackNavigator<RootStackParamList>();
   const [user, setUser] = useState(null);
